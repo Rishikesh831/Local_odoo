@@ -1,14 +1,21 @@
-import express from "express"
+import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import authRoutes from "./routes/authroutes.js";
 
-const app = express()
+dotenv.config();
+const app = express();
 
-const port = 5000; 
+app.use(cors());
+app.use(express.json());
 
-app.listen("/",(req,res) => {
-    console.log("this is the home page");
-    res.send("this is working")
-})
+app.use("/api/auth", authRoutes);
+app.use("/api/products",productRoutes)
 
-app.listen(port, () => {
-    console.log("server is running on localhost:5000");
-})
+app.get("/", (req, res) => {
+  res.send("API is running...");
+});
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
