@@ -22,7 +22,7 @@ export const registerUser = async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
 
     await pool.query(
-      "INSERT INTO users(name, email, password) VALUES($1, $2, $3)",
+      "INSERT INTO users(username, email, password_hash) VALUES($1, $2, $3)",
       [name, email, hashed]
     );
 
@@ -47,7 +47,7 @@ export const loginUser = async (req, res) => {
     if (user.rows.length === 0)
       return res.status(400).json({ message: "Invalid credentials" });
 
-    const valid = await bcrypt.compare(password, user.rows[0].password);
+    const valid = await bcrypt.compare(password, user.rows[0].password_hash);
     if (!valid)
       return res.status(400).json({ message: "Invalid credentials" });
 
@@ -92,11 +92,11 @@ export const verifyOtp = async (req, res) => {
 
     // OTP correct → issue token
     const user = await pool.query(
-      "SELECT id FROM users WHERE email = $1",
+      "SELECT user_id FROM users WHERE email = $1",
       [email]
     );
 
-    const token = generateToken(user.rows[0].id);
+    const token = generateToken(user.rows[0].user_id);
 
     // Clear OTP from memory
     otpStore.delete(email);

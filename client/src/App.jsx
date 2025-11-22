@@ -1,5 +1,8 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Operations from './pages/Operations';
 import Stock from './pages/Stock';
@@ -12,6 +15,7 @@ import DeliveryDetail from './pages/DeliveryDetail';
 import Warehouses from './pages/Warehouses';
 import WarehouseDetail from './pages/WarehouseDetail';
 import CreateOrder from './pages/CreateOrder';
+import MoveHistory from './pages/MoveHistory';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import './index.css';
@@ -20,8 +24,17 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Dashboard />} />
+        {/* Public routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        
+        {/* Protected routes */}
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="operations" element={<Operations />} />
           <Route path="stock" element={<Stock />} />
@@ -33,6 +46,7 @@ function App() {
           <Route path="deliveries/:id" element={<DeliveryDetail />} />
           <Route path="warehouses" element={<Warehouses />} />
           <Route path="warehouses/:warehouseId" element={<WarehouseDetail />} />
+          <Route path="move-history" element={<MoveHistory />} />
           <Route path="create-order" element={<CreateOrder />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />

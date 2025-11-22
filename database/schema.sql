@@ -68,9 +68,11 @@ CREATE TABLE receipts (
     supplier_name VARCHAR(255),
     reference_number VARCHAR(100),
     receipt_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'ready', 'completed', 'cancelled')),
     notes TEXT,
     created_by INTEGER REFERENCES users(user_id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Deliveries Table (Outgoing stock - sales, shipments, etc.)
@@ -82,9 +84,11 @@ CREATE TABLE deliveries (
     customer_name VARCHAR(255),
     reference_number VARCHAR(100),
     delivery_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'ready', 'in_transit', 'completed', 'cancelled')),
     notes TEXT,
     created_by INTEGER REFERENCES users(user_id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Transfers Table (Inter-warehouse stock movements)
@@ -150,6 +154,12 @@ CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products
 CREATE TRIGGER update_warehouses_updated_at BEFORE UPDATE ON warehouses
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_receipts_updated_at BEFORE UPDATE ON receipts
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_deliveries_updated_at BEFORE UPDATE ON deliveries
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Create trigger to update inventory last_updated
 CREATE TRIGGER update_inventory_last_updated BEFORE UPDATE ON inventory
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -211,16 +221,16 @@ INSERT INTO inventory (product_id, warehouse_id, quantity, reserved_quantity) VA
 (8, 3, 58, 0);
 
 -- Sample Receipts
-INSERT INTO receipts (product_id, warehouse_id, quantity, supplier_name, reference_number, receipt_date, created_by) VALUES
-(1, 1, 50, 'Supplier ABC Ltd', 'PO-2024-001', '2024-11-15', 1),
-(3, 1, 300, 'Raw Materials Corp', 'PO-2024-002', '2024-11-18', 1),
-(5, 2, 60, 'Finished Goods Inc', 'PO-2024-003', '2024-11-20', 2);
+INSERT INTO receipts (product_id, warehouse_id, quantity, supplier_name, reference_number, receipt_date, status, created_by) VALUES
+(1, 1, 50, 'Supplier ABC Ltd', 'PO-2024-001', '2024-11-15', 'completed', 1),
+(3, 1, 300, 'Raw Materials Corp', 'PO-2024-002', '2024-11-18', 'completed', 1),
+(5, 2, 60, 'Finished Goods Inc', 'PO-2024-003', '2024-11-20', 'ready', 2);
 
 -- Sample Deliveries
-INSERT INTO deliveries (product_id, warehouse_id, quantity, customer_name, reference_number, delivery_date, created_by) VALUES
-(5, 1, 15, 'Customer XYZ Pvt Ltd', 'SO-2024-001', '2024-11-16', 2),
-(1, 2, 10, 'Retail Chain ABC', 'SO-2024-002', '2024-11-19', 2),
-(4, 1, 100, 'Packaging Distributors', 'SO-2024-003', '2024-11-21', 3);
+INSERT INTO deliveries (product_id, warehouse_id, quantity, customer_name, reference_number, delivery_date, status, created_by) VALUES
+(5, 1, 15, 'Customer XYZ Pvt Ltd', 'SO-2024-001', '2024-11-16', 'completed', 2),
+(1, 2, 10, 'Retail Chain ABC', 'SO-2024-002', '2024-11-19', 'in_transit', 2),
+(4, 1, 100, 'Packaging Distributors', 'SO-2024-003', '2024-11-21', 'ready', 3);
 
 -- Sample Transfers
 INSERT INTO transfers (product_id, from_warehouse_id, to_warehouse_id, quantity, transfer_date, status, created_by) VALUES

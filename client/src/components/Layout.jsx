@@ -1,4 +1,4 @@
-import { Link, useLocation, Outlet } from 'react-router-dom';
+import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { useState, useRef } from 'react';
 import { 
   LayoutDashboard, 
@@ -7,15 +7,27 @@ import {
   Settings,
   ChevronDown,
   Inbox,
-  Send
+  Send,
+  LogOut,
+  User
 } from 'lucide-react';
 
 const TopNav = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [operationsOpen, setOperationsOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const timeoutRef = useRef(null);
+  const userTimeoutRef = useRef(null);
   
+  const userEmail = localStorage.getItem('userEmail') || 'User';
   const isOperationsActive = location.pathname === '/receipts' || location.pathname === '/deliveries';
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userEmail');
+    navigate('/login');
+  };
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) {
@@ -131,6 +143,19 @@ const TopNav = () => {
           </Link>
           
           <Link
+            to="/move-history"
+            className="px-4 py-2 font-medium transition-colors"
+            style={location.pathname === '/move-history' ? {
+              borderBottom: '2px solid var(--accent-green)',
+              color: 'var(--accent-green)'
+            } : {
+              color: 'var(--text-secondary)'
+            }}
+          >
+            Move History
+          </Link>
+          
+          <Link
             to="/reports"
             className="px-4 py-2 font-medium transition-colors"
             style={location.pathname === '/reports' ? {
@@ -155,6 +180,62 @@ const TopNav = () => {
           >
             Settings
           </Link>
+
+          {/* User Menu */}
+          <div 
+            className="relative"
+            onMouseEnter={() => {
+              if (userTimeoutRef.current) clearTimeout(userTimeoutRef.current);
+              setUserMenuOpen(true);
+            }}
+            onMouseLeave={() => {
+              userTimeoutRef.current = setTimeout(() => {
+                setUserMenuOpen(false);
+              }, 150);
+            }}
+          >
+            <button
+              className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors"
+              style={{ 
+                backgroundColor: userMenuOpen ? 'var(--bg-primary)' : 'transparent',
+                color: 'var(--text-primary)'
+              }}
+            >
+              <User className="w-5 h-5" />
+              <span className="text-sm font-medium">{userEmail.split('@')[0]}</span>
+              <ChevronDown className="w-4 h-4" />
+            </button>
+            
+            {userMenuOpen && (
+              <div 
+                className="absolute right-0 w-56 rounded-lg shadow-lg overflow-hidden"
+                style={{ 
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  top: 'calc(100% + 8px)',
+                  zIndex: 1000
+                }}
+              >
+                <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    Signed in as
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                    {userEmail}
+                  </p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 px-4 py-3 w-full transition-colors text-red-600"
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-primary)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="font-medium">Logout</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </nav>
