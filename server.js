@@ -9,7 +9,7 @@ import transferRoutes from "./routes/transferRoutes.js";
 import adjustmentRoutes from "./routes/adjustmentRoutes.js";
 import warehouseRoutes from "./routes/warehouseRoutes.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
-import moveHistoryRoutes from "./routes/moveHistoryRoutes.js";
+import stockRoutes from "./routes/stockRoutes.js";
 
 dotenv.config();
 const app = express();
@@ -34,9 +34,8 @@ app.use("/api/warehouses", warehouseRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/moves", moveHistoryRoutes);
 
-app.get("/", (req, res) => {
+app.use("/api/stock", stockRoutes);
   res.send("IMS Backend Running...");
-});
 
 app.listen(process.env.PORT || 5000, () => {
   console.log("Server running on port", process.env.PORT || 5000);

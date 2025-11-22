@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { receiptsAPI } from '@/services/api';
+import { receiptsAPI, productsAPI, warehousesAPI } from '@/services/api';
+import { Plus, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const ReceiptDetail = () => {
   const { id } = useParams();
@@ -8,10 +10,17 @@ const ReceiptDetail = () => {
   const [receipt, setReceipt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [newItem, setNewItem] = useState({ product_id: '', qty: '', warehouse_id: '' });
+  const [validating, setValidating] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchReceipt();
+      fetchProducts();
+      fetchWarehouses();
     }
   }, [id]);
 
@@ -29,14 +38,76 @@ const ReceiptDetail = () => {
     }
   };
 
-  const handleValidate = async () => {
+  const fetchProducts = async () => {
     try {
-      const response = await receiptsAPI.validate(id);
+      const response = await productsAPI.getAll();
+      setProducts(response.data);
+    } catch (err) {
+      console.error('Error fetching products:', err);
+    }
+  };
+
+  const fetchWarehouses = async () => {
+    try {
+      const response = await warehousesAPI.getAll();
+      setWarehouses(response.data);
+    } catch (err) {
+      console.error('Error fetching warehouses:', err);
+    }
+  };
+
+  const handleValidate = async () => {
+    // Check if there are items
+    if (!receipt.items || receipt.items.length === 0) {
+      toast.error('Cannot validate receipt: Please add at least one product');
+      return;
+    }
+
+    try {
+      setValidating(true);
+      await receiptsAPI.validate(id);
       // Refresh receipt data
       await fetchReceipt();
+      const statusMsg = receipt.status === 'draft' ? 'Ready' : 'Done';
+      toast.success(`Receipt validated successfully! Status updated to ${statusMsg}`, { duration: 4000 });
     } catch (err) {
       console.error('Error validating receipt:', err);
-      alert('Failed to validate receipt');
+      const errorMsg = err.response?.data?.error || 'Failed to validate receipt';
+      const details = err.response?.data?.details;
+      
+      if (details && Array.isArray(details)) {
+        toast.error(
+          <div>
+            <strong>{errorMsg}</strong>
+            <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+              {details.map((detail, i) => <li key={i}>{detail}</li>)}
+            </ul>
+          </div>,
+          { duration: 6000 }
+        );
+      } else {
+        toast.error(errorMsg);
+      }
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const handleAddProduct = async () => {
+    if (!newItem.product_id || !newItem.qty || !newItem.warehouse_id) {
+      toast.error('Please fill all product details');
+      return;
+    }
+
+    try {
+      await receiptsAPI.addItem(id, newItem);
+      setShowAddProduct(false);
+      setNewItem({ product_id: '', qty: '', warehouse_id: '' });
+      await fetchReceipt();
+      toast.success('Product added successfully!');
+    } catch (err) {
+      console.error('Error adding product:', err);
+      toast.error(err.response?.data?.error || 'Failed to add product');
     }
   };
 
@@ -113,15 +184,16 @@ const ReceiptDetail = () => {
       <div className="flex items-center gap-3">
         <button
           onClick={handleValidate}
-          disabled={receipt.status === 'done'}
+          disabled={receipt.status === 'done' || validating}
           className="px-4 py-2 rounded-lg font-medium text-white transition-colors"
           style={{ 
             backgroundColor: receipt.status === 'done' ? '#ccc' : 'var(--accent-green)',
             border: 'none',
-            cursor: receipt.status === 'done' ? 'not-allowed' : 'pointer'
+            cursor: receipt.status === 'done' || validating ? 'not-allowed' : 'pointer',
+            opacity: validating ? 0.7 : 1
           }}
         >
-          Validate
+          {validating ? 'Validating...' : 'Validate'}
         </button>
         <button
           onClick={handlePrint}
@@ -284,14 +356,124 @@ const ReceiptDetail = () => {
             </tbody>
           </table>
 
-          <button
-            className="text-sm font-medium transition-colors"
-            style={{ color: 'var(--accent-green)' }}
-            onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-            onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
-          >
-            New Product
-          </button>
+          {receipt.status !== 'done' && (
+            <>
+              {!showAddProduct ? (
+                <button
+                  onClick={() => setShowAddProduct(true)}
+                  className="flex items-center gap-2 text-sm font-medium transition-colors px-4 py-2 rounded-lg"
+                  style={{ 
+                    color: 'var(--accent-green)',
+                    border: '1px dashed var(--accent-green)'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(115, 169, 127, 0.1)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Product
+                </button>
+              ) : (
+                <div className="p-4 rounded-lg" style={{ backgroundColor: 'rgba(115, 169, 127, 0.05)', border: '1px solid var(--accent-green)' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium" style={{ color: 'var(--text-primary)' }}>Add New Product</h4>
+                    <button
+                      onClick={() => {
+                        setShowAddProduct(false);
+                        setNewItem({ product_id: '', qty: '', warehouse_id: '' });
+                      }}
+                      className="p-1 rounded hover:bg-gray-200"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+                        Product *
+                      </label>
+                      <select
+                        value={newItem.product_id}
+                        onChange={(e) => setNewItem({ ...newItem, product_id: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg text-sm"
+                        style={{
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: 'var(--bg-card)'
+                        }}
+                      >
+                        <option value="">Select product</option>
+                        {products.map((product) => (
+                          <option key={product.id} value={product.id}>
+                            {product.name} ({product.sku})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+                        Quantity *
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={newItem.qty}
+                        onChange={(e) => setNewItem({ ...newItem, qty: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg text-sm"
+                        style={{
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: 'var(--bg-card)'
+                        }}
+                        placeholder="Enter qty"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+                        Warehouse *
+                      </label>
+                      <select
+                        value={newItem.warehouse_id}
+                        onChange={(e) => setNewItem({ ...newItem, warehouse_id: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg text-sm"
+                        style={{
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: 'var(--bg-card)'
+                        }}
+                      >
+                        <option value="">Select warehouse</option>
+                        {warehouses.map((warehouse) => (
+                          <option key={warehouse.id} value={warehouse.id}>
+                            {warehouse.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 mt-3">
+                    <button
+                      onClick={() => {
+                        setShowAddProduct(false);
+                        setNewItem({ product_id: '', qty: '', warehouse_id: '' });
+                      }}
+                      className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      style={{
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-card)',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAddProduct}
+                      className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+                      style={{ backgroundColor: 'var(--accent-green)', border: 'none' }}
+                    >
+                      Add Product
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 

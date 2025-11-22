@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { warehousesAPI } from '@/services/api';
+import CreateWarehouseModal from '@/components/CreateWarehouseModal';
 
 const Warehouses = () => {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ const Warehouses = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     fetchWarehouses();
@@ -70,8 +72,8 @@ const Warehouses = () => {
           <h1 className="text-3xl font-bold text-gray-900">Warehouses</h1>
           <p className="text-gray-500 mt-1">Manage warehouse locations and inventory</p>
         </div>
-        <Button>
-          <Plus className="w-4 h-4" />
+        <Button onClick={() => setShowCreateModal(true)}>
+          <Plus className="w-4 h-4 mr-2" />
           Add Warehouse
         </Button>
       </div>
@@ -231,6 +233,13 @@ const Warehouses = () => {
           <p className="text-gray-500">No warehouses found matching your search.</p>
         </div>
       )}
+
+      {/* Create Warehouse Modal */}
+      <CreateWarehouseModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={fetchWarehouses}
+      />
     </div>
   );
 };

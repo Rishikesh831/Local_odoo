@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { receiptsAPI } from '@/services/api';
+import CreateReceiptModal from '@/components/CreateReceiptModal';
 
 const Receipts = () => {
   const navigate = useNavigate();
@@ -12,6 +13,9 @@ const Receipts = () => {
   const [receipts, setReceipts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
     fetchReceipts();
@@ -45,6 +49,18 @@ const Receipts = () => {
     return <Badge variant={statusMap[status] || 'draft'}>{displayStatus}</Badge>;
   };
 
+  // Filter receipts based on search term and status
+  const filteredReceipts = receipts.filter(receipt => {
+    const matchesSearch = searchTerm === '' || 
+      receipt.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      receipt.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(receipt.id).includes(searchTerm);
+    
+    const matchesStatus = statusFilter === '' || receipt.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -68,9 +84,9 @@ const Receipts = () => {
         <h1 className="text-3xl font-bold m-0" style={{ color: 'var(--text-primary)' }}>
           Receipts
         </h1>
-        <Button>
-          <Plus className="w-4 h-4" />
-          NEW
+        <Button onClick={() => setShowCreateModal(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Create Receipt
         </Button>
       </div>
 
@@ -81,6 +97,8 @@ const Receipts = () => {
           <Input 
             placeholder="Search by reference & contacts..." 
             className="pl-10"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         
@@ -171,18 +189,18 @@ const Receipts = () => {
             </tr>
           </thead>
           <tbody>
-            {receipts.length === 0 ? (
+            {filteredReceipts.length === 0 ? (
               <tr>
                 <td colSpan="6" style={{ 
                   padding: '32px',
                   textAlign: 'center',
                   color: 'var(--text-secondary)'
                 }}>
-                  No receipts found. Click "NEW" to create one.
+                  {receipts.length === 0 ? 'No receipts found. Click "Create Receipt" to create one.' : 'No receipts match your search criteria.'}
                 </td>
               </tr>
             ) : (
-              receipts.map((receipt, index) => (
+              filteredReceipts.map((receipt, index) => (
                 <tr 
                   key={receipt.id}
                   style={{ 
@@ -194,11 +212,21 @@ const Receipts = () => {
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   <td style={{ 
-                    padding: '16px 24px',
-                    color: 'var(--text-primary)',
-                    fontWeight: '600'
+                    padding: '16px 24px'
                   }}>
-                    WH/IN/{String(receipt.id).padStart(4, '0')}
+                    <button
+                      onClick={() => handleReceiptClick(receipt.id)}
+                      style={{
+                        color: 'var(--primary)',
+                        fontWeight: '600',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        textDecoration: 'underline'
+                      }}
+                    >
+                      WH/IN/{String(receipt.id).padStart(4, '0')}
+                    </button>
                   </td>
                   <td style={{ 
                     padding: '16px 24px',
@@ -235,6 +263,13 @@ const Receipts = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Create Receipt Modal */}
+      <CreateReceiptModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={fetchReceipts}
+      />
     </div>
   );
 };

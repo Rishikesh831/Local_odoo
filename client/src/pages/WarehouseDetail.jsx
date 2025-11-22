@@ -226,7 +226,12 @@ const WarehouseDetail = () => {
                     return (
                       <tr key={product.id} className="border-b last:border-0 hover:bg-gray-50">
                         <td className="py-4 px-6">
-                          <p className="font-semibold text-gray-900">{product.name}</p>
+                          <button
+                            onClick={() => navigate('/stock')}
+                            className="font-semibold text-blue-600 hover:text-blue-800 hover:underline text-left"
+                          >
+                            {product.name}
+                          </button>
                         </td>
                         <td className="py-4 px-6">
                           <code className="text-sm bg-gray-100 px-2 py-1 rounded">{product.sku}</code>

@@ -52,11 +52,11 @@ export const getReceiptById = async (req, res) => {
 
 export const createReceipt = async (req, res) => {
   try {
-    const { vendor, schedule_date, responsible } = req.body;
+    const { supplier_name, receipt_date, reference_number, notes, product_id, quantity, warehouse_id } = req.body;
 
     const result = await pool.query(
-      "INSERT INTO receipts (vendor, schedule_date, responsible, status) VALUES ($1, $2, $3, 'draft') RETURNING *",
-      [vendor, schedule_date, responsible]
+      "INSERT INTO receipts (supplier_name, receipt_date, reference_number, notes, product_id, quantity, warehouse_id, status) VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft') RETURNING receipt_id as id, supplier_name, receipt_date, reference_number, notes, product_id, quantity, warehouse_id, status",
+      [supplier_name, receipt_date, reference_number, notes || null, product_id, quantity, warehouse_id]
     );
 
     res.json(result.rows[0]);
@@ -67,15 +67,17 @@ export const createReceipt = async (req, res) => {
 
 export const addReceiptItem = async (req, res) => {
   try {
-    const { product_id, qty } = req.body;
+    const { product_id, qty, warehouse_id } = req.body;
 
+    // receipt_items uses location_id, not warehouse_id
     await pool.query(
-      "INSERT INTO receipt_items (receipt_id,product_id,qty) VALUES ($1,$2,$3)",
-      [req.params.receiptId, product_id, qty]
+      "INSERT INTO receipt_items (receipt_id, product_id, qty, location_id) VALUES ($1, $2, $3, $4)",
+      [req.params.receiptId, product_id, qty, warehouse_id || null]
     );
 
     res.json({ message: "Item added" });
   } catch (err) {
+    console.error('Add receipt item error:', err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -86,7 +88,7 @@ export const validateReceipt = async (req, res) => {
 
     // Get current status
     const receiptStatus = await pool.query(
-      "SELECT status FROM receipts WHERE id=$1",
+      "SELECT status FROM receipts WHERE receipt_id=$1",
       [receiptId]
     );
 
@@ -105,25 +107,40 @@ export const validateReceipt = async (req, res) => {
       
       // Only update stock when moving to done
       const items = await pool.query(
-        "SELECT product_id, qty FROM receipt_items WHERE receipt_id=$1",
+        "SELECT product_id, qty, location_id FROM receipt_items WHERE receipt_id=$1",
         [receiptId]
       );
 
       for (let item of items.rows) {
+        const locationId = item.location_id || 1;
+        
+        // Get warehouse_id for this location
+        const locationInfo = await pool.query(
+          "SELECT warehouse_id FROM stock WHERE location_id=$1 LIMIT 1",
+          [locationId]
+        );
+        
+        const warehouseId = locationInfo.rows.length > 0 ? locationInfo.rows[0].warehouse_id : 1;
+        
+        // Use UPSERT: Insert if not exists, otherwise update
         await pool.query(
-          "UPDATE stock SET qty = qty + $1 WHERE product_id=$2 AND warehouse_id=1",
-          [item.qty, item.product_id]
+          `INSERT INTO stock (product_id, warehouse_id, location_id, qty) 
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (product_id, warehouse_id, location_id) 
+           DO UPDATE SET qty = stock.qty + $4`,
+          [item.product_id, warehouseId, locationId, item.qty]
         );
       }
     }
 
-    await pool.query("UPDATE receipts SET status=$1 WHERE id=$2", [
+    await pool.query("UPDATE receipts SET status=$1 WHERE receipt_id=$2", [
       newStatus,
       receiptId,
     ]);
 
     res.json({ message: "Receipt status updated", status: newStatus });
   } catch (err) {
+    console.error('Validate receipt error:', err);
     res.status(500).json({ error: err.message });
   }
 };
