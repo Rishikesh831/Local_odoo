@@ -1,29 +1,68 @@
 import { Plus, Search, Download, Settings, RefreshCw, MoreVertical } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { deliveriesAPI } from '@/services/api';
 
 const Deliveries = () => {
-  const kpiData = [
-    { label: 'Total Deliveries', value: '234', subtitle: 'This month' },
-    { label: 'Ready to Ship', value: '18', badge: 'warning', badgeText: 'Awaiting pickup' },
-    { label: 'In Transit', value: '32', badge: 'info', badgeText: 'On the way' },
-    { label: 'Delivered Today', value: '15', badge: 'success', badgeText: '+5 from yesterday' },
-  ];
+  const navigate = useNavigate();
+  const [deliveries, setDeliveries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const deliveries = [
-    { id: 'DEL-2145', customer: 'Tech Solutions Inc.', email: 'tech@solutions.com', date: 'Nov 23, 2025', created: 'Nov 22, 2025', products: 4, qty: 180, status: 'ready' },
-    { id: 'DEL-2144', customer: 'Global Manufacturing Ltd.', email: 'orders@globalman.com', date: 'Nov 22, 2025', created: 'Nov 21, 2025', products: 6, qty: 320, status: 'shipped' },
-    { id: 'DEL-2143', customer: 'Retail Stores Corp.', email: 'purchasing@retail.com', date: 'Nov 21, 2025', created: 'Nov 21, 2025', products: 3, qty: 95, status: 'delivered' },
-    { id: 'DEL-2142', customer: 'Industrial Parts Co.', email: 'sales@indparts.com', date: 'Nov 24, 2025', created: 'Nov 20, 2025', products: 8, qty: 450, status: 'draft' },
+  useEffect(() => {
+    fetchDeliveries();
+  }, []);
+
+  const fetchDeliveries = async () => {
+    try {
+      setLoading(true);
+      const response = await deliveriesAPI.getAll();
+      setDeliveries(response.data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch deliveries');
+      console.error('Error fetching deliveries:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeliveryClick = (deliveryId) => {
+    navigate(`/deliveries/${deliveryId}`);
+  };
+
+  const kpiData = [
+    { label: 'Total Deliveries', value: deliveries.length.toString(), subtitle: 'All time' },
+    { label: 'Ready to Ship', value: deliveries.filter(d => d.status === 'ready').length.toString(), badge: 'warning', badgeText: 'Awaiting pickup' },
+    { label: 'Done', value: deliveries.filter(d => d.status === 'done').length.toString(), badge: 'success', badgeText: 'Delivered' },
+    { label: 'Draft', value: deliveries.filter(d => d.status === 'draft').length.toString(), badge: 'draft', badgeText: 'In progress' },
   ];
 
   const getStatusBadge = (status) => {
-    const variants = { delivered: 'success', shipped: 'info', ready: 'warning', draft: 'draft' };
-    return <Badge variant={variants[status]}>{status === 'ready' ? 'Ready to Ship' : status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
+    const variants = { done: 'success', ready: 'warning', draft: 'draft' };
+    return <Badge variant={variants[status] || 'draft'}>{status === 'ready' ? 'Ready to Ship' : status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p style={{ color: 'var(--text-secondary)' }}>Loading deliveries...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p style={{ color: 'var(--accent-red)' }}>{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -105,35 +144,55 @@ const Deliveries = () => {
                 </tr>
               </thead>
               <tbody>
-                {deliveries.map((delivery) => (
-                  <tr key={delivery.id} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="py-4 px-6">
-                      <p className="font-semibold text-gray-900">{delivery.id}</p>
-                      <p className="text-sm text-gray-500">Created: {delivery.created}</p>
-                    </td>
-                    <td className="py-4 px-6">
-                      <p className="font-semibold text-gray-900">{delivery.customer}</p>
-                      <p className="text-sm text-gray-500">{delivery.email}</p>
-                    </td>
-                    <td className="py-4 px-6 text-gray-600">{delivery.date}</td>
-                    <td className="py-4 px-6 text-gray-600">{delivery.products} items</td>
-                    <td className="py-4 px-6">
-                      <span className="font-semibold">{delivery.qty}</span> units
-                    </td>
-                    <td className="py-4 px-6">{getStatusBadge(delivery.status)}</td>
-                    <td className="py-4 px-6">
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">View</Button>
-                        {delivery.status === 'ready' && <Button size="sm">Ship</Button>}
-                        {delivery.status === 'shipped' && <Button variant="outline" size="sm">Track</Button>}
-                        {delivery.status === 'draft' && <Button variant="outline" size="sm">Edit</Button>}
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </div>
+                {deliveries.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="py-8 px-6 text-center text-gray-500">
+                      No deliveries found. Click "Create Delivery" to get started.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  deliveries.map((delivery) => (
+                    <tr 
+                      key={delivery.id} 
+                      className="border-b last:border-0 hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleDeliveryClick(delivery.id)}
+                    >
+                      <td className="py-4 px-6">
+                        <p className="font-semibold text-gray-900">WH/OUT/{String(delivery.id).padStart(4, '0')}</p>
+                        <p className="text-sm text-gray-500">
+                          Created: {delivery.created_at ? new Date(delivery.created_at).toLocaleDateString() : '-'}
+                        </p>
+                      </td>
+                      <td className="py-4 px-6">
+                        <p className="font-semibold text-gray-900">{delivery.customer || 'Customer'}</p>
+                        <p className="text-sm text-gray-500">{delivery.customer || '-'}</p>
+                      </td>
+                      <td className="py-4 px-6 text-gray-600">
+                        {delivery.schedule_date ? new Date(delivery.schedule_date).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="py-4 px-6 text-gray-600">{delivery.item_count || 0} items</td>
+                      <td className="py-4 px-6">
+                        <span className="font-semibold">-</span> units
+                      </td>
+                      <td className="py-4 px-6">{getStatusBadge(delivery.status)}</td>
+                      <td className="py-4 px-6">
+                        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+        <CardFooter className="flex justify-between items-center py-4">
+          <p className="text-sm text-gray-500">Showing {deliveries.length} deliveries</p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled>Previous</Button>
+            <Button variant="outline" size="sm">1</Button>
+            <Button variant="outline" size="sm">Next</Button>
+          </div>
+        </CardFooter>     {delivery.status === 'draft' && <Button variant="outline" size="sm">Edit</Button>}
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

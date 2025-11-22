@@ -1,37 +1,65 @@
 import { Plus, Search, List, LayoutGrid, MoreVertical } from 'lucide-react';
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { receiptsAPI } from '@/services/api';
 
 const Receipts = () => {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'kanban'
+  const [receipts, setReceipts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const receipts = [
-    { 
-      id: 'WH/IN/0001', 
-      reference: 'WH/IN/0001',
-      from: 'vendor', 
-      to: 'WH/Stock1', 
-      contact: 'Azure Interior',
-      scheduleDate: '',
-      status: 'Ready' 
-    },
-    { 
-      id: 'WH/IN/0002', 
-      reference: 'WH/IN/0002',
-      from: 'vendor', 
-      to: 'WH/Stock1', 
-      contact: 'Azure Interior',
-      scheduleDate: '',
-      status: 'Ready' 
-    },
-  ];
+  useEffect(() => {
+    fetchReceipts();
+  }, []);
+
+  const fetchReceipts = async () => {
+    try {
+      setLoading(true);
+      const response = await receiptsAPI.getAll();
+      setReceipts(response.data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch receipts');
+      console.error('Error fetching receipts:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReceiptClick = (receiptId) => {
+    navigate(`/receipts/${receiptId}`);
+  };
 
   const getStatusBadge = (status) => {
-    return <Badge variant="success">{status}</Badge>;
+    const statusMap = {
+      draft: 'draft',
+      ready: 'warning',
+      done: 'success'
+    };
+    const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
+    return <Badge variant={statusMap[status] || 'draft'}>{displayStatus}</Badge>;
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p style={{ color: 'var(--text-secondary)' }}>Loading receipts...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p style={{ color: 'var(--accent-red)' }}>{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -143,53 +171,67 @@ const Receipts = () => {
             </tr>
           </thead>
           <tbody>
-            {receipts.map((receipt, index) => (
-              <tr 
-                key={receipt.id}
-                style={{ 
-                  borderBottom: index !== receipts.length - 1 ? '1px solid var(--border-color)' : 'none'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-primary)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <td style={{ 
-                  padding: '16px 24px',
-                  color: 'var(--text-primary)',
-                  fontWeight: '600'
-                }}>
-                  {receipt.reference}
-                </td>
-                <td style={{ 
-                  padding: '16px 24px',
+            {receipts.length === 0 ? (
+              <tr>
+                <td colSpan="6" style={{ 
+                  padding: '32px',
+                  textAlign: 'center',
                   color: 'var(--text-secondary)'
                 }}>
-                  {receipt.from}
-                </td>
-                <td style={{ 
-                  padding: '16px 24px',
-                  color: 'var(--text-secondary)'
-                }}>
-                  {receipt.to}
-                </td>
-                <td style={{ 
-                  padding: '16px 24px',
-                  color: 'var(--text-secondary)'
-                }}>
-                  {receipt.contact}
-                </td>
-                <td style={{ 
-                  padding: '16px 24px',
-                  color: 'var(--text-secondary)'
-                }}>
-                  {receipt.scheduleDate || '-'}
-                </td>
-                <td style={{ 
-                  padding: '16px 24px'
-                }}>
-                  {getStatusBadge(receipt.status)}
+                  No receipts found. Click "NEW" to create one.
                 </td>
               </tr>
-            ))}
+            ) : (
+              receipts.map((receipt, index) => (
+                <tr 
+                  key={receipt.id}
+                  style={{ 
+                    borderBottom: index !== receipts.length - 1 ? '1px solid var(--border-color)' : 'none',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => handleReceiptClick(receipt.id)}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-primary)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <td style={{ 
+                    padding: '16px 24px',
+                    color: 'var(--text-primary)',
+                    fontWeight: '600'
+                  }}>
+                    WH/IN/{String(receipt.id).padStart(4, '0')}
+                  </td>
+                  <td style={{ 
+                    padding: '16px 24px',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    {receipt.vendor || 'vendor'}
+                  </td>
+                  <td style={{ 
+                    padding: '16px 24px',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    WH/Stock1
+                  </td>
+                  <td style={{ 
+                    padding: '16px 24px',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    {receipt.vendor || '-'}
+                  </td>
+                  <td style={{ 
+                    padding: '16px 24px',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    {receipt.schedule_date ? new Date(receipt.schedule_date).toLocaleDateString() : '-'}
+                  </td>
+                  <td style={{ 
+                    padding: '16px 24px'
+                  }}>
+                    {getStatusBadge(receipt.status)}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

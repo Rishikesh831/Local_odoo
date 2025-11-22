@@ -17,8 +17,56 @@ export const createProduct = async (req, res) => {
 
 export const getProducts = async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM products");
+    const result = await pool.query(`
+      SELECT 
+        p.product_id as id, p.product_name as name, p.sku, p.category, 
+        p.unit_price, p.uom, p.reorder_level, p.is_active,
+        COALESCE(SUM(s.qty), 0) as total_qty
+      FROM products p
+      LEFT JOIN stock s ON p.product_id = s.product_id
+      GROUP BY p.product_id, p.product_name, p.sku, p.category, p.unit_price, p.uom, p.reorder_level, p.is_active
+      ORDER BY p.product_name
+    `);
     res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getProductById = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    
+    const productResult = await pool.query(
+      `SELECT 
+        p.product_id as id, p.product_name as name, p.sku, p.category, 
+        p.unit_price, p.uom, p.reorder_level, p.is_active,
+        COALESCE(SUM(s.qty), 0) as total_qty
+      FROM products p
+      LEFT JOIN stock s ON p.product_id = s.product_id
+      WHERE p.product_id = $1
+      GROUP BY p.product_id, p.product_name, p.sku, p.category, p.unit_price, p.uom, p.reorder_level, p.is_active`,
+      [productId]
+    );
+
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    // Get stock by warehouse
+    const stockResult = await pool.query(
+      `SELECT s.id, s.product_id, s.warehouse_id, s.location_id, s.qty,
+        w.warehouse_name
+      FROM stock s
+      JOIN warehouses w ON s.warehouse_id = w.warehouse_id
+      WHERE s.product_id = $1`,
+      [productId]
+    );
+
+    res.json({
+      ...productResult.rows[0],
+      stock_by_warehouse: stockResult.rows
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,21 +1,76 @@
+import { useState, useEffect } from 'react';
 import { Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { receiptsAPI, deliveriesAPI } from '@/services/api';
 
 const Operations = () => {
-  // Receipt data
-  const receipts = {
-    toReceive: 4,
-    late: 1,
-    operations: 6
+  const [receipts, setReceipts] = useState({
+    toReceive: 0,
+    late: 0,
+    operations: 0
+  });
+
+  const [deliveries, setDeliveries] = useState({
+    toDeliver: 0,
+    late: 0,
+    waiting: 0,
+    operations: 0
+  });
+
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchOperationsData();
+  }, []);
+
+  const fetchOperationsData = async () => {
+    try {
+      setLoading(true);
+      const [receiptData, deliveryData] = await Promise.all([
+        receiptsAPI.getAll(),
+        deliveriesAPI.getAll()
+      ]);
+
+      // Calculate receipt stats
+      const now = new Date();
+      const receiptStats = {
+        toReceive: receiptData.filter(r => r.status === 'draft' || r.status === 'waiting').length,
+        late: receiptData.filter(r => {
+          if (r.status === 'done') return false;
+          const scheduleDate = new Date(r.schedule_date);
+          return scheduleDate < now;
+        }).length,
+        operations: receiptData.length
+      };
+
+      // Calculate delivery stats
+      const deliveryStats = {
+        toDeliver: deliveryData.filter(d => d.status === 'draft' || d.status === 'waiting').length,
+        late: deliveryData.filter(d => {
+          if (d.status === 'done') return false;
+          const scheduleDate = new Date(d.schedule_date);
+          return scheduleDate < now;
+        }).length,
+        waiting: deliveryData.filter(d => d.status === 'waiting').length,
+        operations: deliveryData.length
+      };
+
+      setReceipts(receiptStats);
+      setDeliveries(deliveryStats);
+    } catch (err) {
+      console.error('Failed to fetch operations data:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Delivery data
-  const deliveries = {
-    toDeliver: 4,
-    late: 1,
-    waiting: 2,
-    operations: 6
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-gray-500">Loading operations data...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

@@ -1,28 +1,63 @@
 import { Plus, Search, Download, Settings, MoreVertical, Info } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { productsAPI } from '@/services/api';
 
 const Stock = () => {
-  const products = [
-    { id: '1', name: 'Widget A Pro', sku: 'WID-A-001', category: 'Electronics', stock: 5, min: 20, unit: 'Units', status: 'low' },
-    { id: '2', name: 'Component XYZ', sku: 'CMP-XYZ-045', category: 'Components', stock: 0, min: 50, unit: 'Units', status: 'out' },
-    { id: '3', name: 'Raw Material 123', sku: 'RAW-123', category: 'Raw Materials', stock: 15, min: 100, unit: 'KG', status: 'low' },
-    { id: '4', name: 'Packaging Box Standard', sku: 'PKG-BOX-STD', category: 'Packaging', stock: 450, min: 200, unit: 'Units', status: 'ok' },
-    { id: '5', name: 'Finished Product Alpha', sku: 'FIN-ALPHA-01', category: 'Finished Goods', stock: 120, min: 50, unit: 'Units', status: 'ok' },
-    { id: '6', name: 'Component Beta', sku: 'CMP-BETA-007', category: 'Components', stock: 89, min: 30, unit: 'Units', status: 'ok' },
-    { id: '7', name: 'Spare Parts Kit', sku: 'SPR-KIT-001', category: 'Components', stock: 8, min: 30, unit: 'Kits', status: 'low' },
-    { id: '8', name: 'Electronic Board V2', sku: 'PCB-V2-034', category: 'Electronics', stock: 67, min: 40, unit: 'Units', status: 'ok' },
-  ];
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await productsAPI.getAll();
+      setProducts(response.data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch products');
+      console.error('Error fetching products:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStockStatus = (currentStock, reorderLevel) => {
+    if (currentStock === 0 || currentStock === '0') return 'out';
+    if (parseInt(currentStock) <= parseInt(reorderLevel || 0)) return 'low';
+    return 'ok';
+  };
 
   const getStatusBadge = (status) => {
-    if (status === 'out') return <Badge variant="danger">Out of Stock</Badge>;
-    if (status === 'low') return <Badge variant="warning">Low Stock</Badge>;
-    return <Badge variant="success">In Stock</Badge>;
+    if (status === 'out') return <Badge variant="destructive">Out of Stock</Badge>; // Changed 'danger' to 'destructive' (common shadcn default)
+    if (status === 'low') return <Badge variant="secondary">Low Stock</Badge>; // Changed 'warning' to 'secondary' or custom class
+    return <Badge variant="outline">In Stock</Badge>; // Changed 'success' to 'outline' or custom class
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p style={{ color: 'var(--text-secondary)' }}>Loading products...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p style={{ color: 'var(--accent-red)' }}>{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -40,7 +75,7 @@ const Stock = () => {
           </button>
         </div>
         <Button>
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 mr-2" />
           Create Product
         </Button>
       </div>
@@ -66,7 +101,7 @@ const Stock = () => {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm">
-            <Download className="w-4 h-4" />
+            <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
           <Button variant="ghost" size="icon">
@@ -81,61 +116,85 @@ const Stock = () => {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr>
-                  <th>Product Name</th>
-                  <th>SKU</th>
-                  <th>Category</th>
-                  <th>Current Stock</th>
-                  <th>Unit</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                <tr className="text-left border-b">
+                  <th className="p-4 font-medium">Product Name</th>
+                  <th className="p-4 font-medium">SKU</th>
+                  <th className="p-4 font-medium">Category</th>
+                  <th className="p-4 font-medium">Current Stock</th>
+                  <th className="p-4 font-medium">Unit</th>
+                  <th className="p-4 font-medium">Status</th>
+                  <th className="p-4 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
-                  <tr key={product.id}>
-                    <td>
-                      <div>
-                        <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{product.name}</p>
-                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>High-performance widget</p>
-                      </div>
-                    </td>
-                    <td>
-                      <code className="text-sm px-2 py-1 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                        {product.sku}
-                      </code>
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)' }}>{product.category}</td>
-                    <td>
-                      <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{product.stock}</span>
-                      <span style={{ color: 'var(--text-secondary)' }}> / {product.min} min</span>
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)' }}>{product.unit}</td>
-                    <td>{getStatusBadge(product.status)}</td>
-                    <td>
-                      <div className="flex gap-2">
-                        <Link to={`/products/${product.id}`}>
-                          <Button variant="outline" size="sm">View</Button>
-                        </Link>
-                        <Button variant="outline" size="sm">Edit</Button>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </div>
+                {products.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" style={{ 
+                      padding: '32px',
+                      textAlign: 'center',
+                      color: 'var(--text-secondary)'
+                    }}>
+                      No products found. Click "Create Product" to get started.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  products.map((product) => {
+                    const stockStatus = getStockStatus(product.total_qty, product.reorder_level);
+                    return (
+                      <tr key={product.id} className="border-b hover:bg-muted/50">
+                        <td className="p-4">
+                          <div>
+                            <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{product.name}</p>
+                            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                              {product.category || 'No category'}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <code className="text-sm px-2 py-1 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                            {product.sku}
+                          </code>
+                        </td>
+                        <td className="p-4" style={{ color: 'var(--text-secondary)' }}>
+                            {product.category || '-'}
+                        </td>
+                        <td className="p-4">
+                          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            {product.total_qty || 0}
+                          </span>
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            {product.reorder_level ? ` / ${product.reorder_level} min` : ''}
+                          </span>
+                        </td>
+                        {/* Added Missing Unit Column */}
+                        <td className="p-4" style={{ color: 'var(--text-secondary)' }}>
+                            {product.unit || 'pcs'}
+                        </td>
+                        {/* Added Missing Status Column */}
+                        <td className="p-4">
+                            {getStatusBadge(stockStatus)}
+                        </td>
+                        {/* Added Missing Actions Column */}
+                        <td className="p-4">
+                            <Button variant="ghost" size="icon">
+                                <MoreVertical className="w-4 h-4" />
+                            </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
         </CardContent>
         <CardFooter className="flex justify-between items-center py-4">
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Showing 1-8 of 234 products</p>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Showing {products.length} products
+          </p>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled>Previous</Button>
             <Button variant="outline" size="sm">1</Button>
-            <Button variant="outline" size="sm">2</Button>
-            <Button variant="outline" size="sm">3</Button>
             <Button variant="outline" size="sm">Next</Button>
           </div>
         </CardFooter>

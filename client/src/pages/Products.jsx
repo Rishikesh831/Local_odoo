@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Plus, Search, Download, Settings, MoreVertical } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -5,24 +6,61 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { productsAPI } from '@/services/api';
 
 const Products = () => {
-  const products = [
-    { id: '1', name: 'Widget A Pro', sku: 'WID-A-001', category: 'Electronics', stock: 5, min: 20, unit: 'Units', status: 'low' },
-    { id: '2', name: 'Component XYZ', sku: 'CMP-XYZ-045', category: 'Components', stock: 0, min: 50, unit: 'Units', status: 'out' },
-    { id: '3', name: 'Raw Material 123', sku: 'RAW-123', category: 'Raw Materials', stock: 15, min: 100, unit: 'KG', status: 'low' },
-    { id: '4', name: 'Packaging Box Standard', sku: 'PKG-BOX-STD', category: 'Packaging', stock: 450, min: 200, unit: 'Units', status: 'ok' },
-    { id: '5', name: 'Finished Product Alpha', sku: 'FIN-ALPHA-01', category: 'Finished Goods', stock: 120, min: 50, unit: 'Units', status: 'ok' },
-    { id: '6', name: 'Component Beta', sku: 'CMP-BETA-007', category: 'Components', stock: 89, min: 30, unit: 'Units', status: 'ok' },
-    { id: '7', name: 'Spare Parts Kit', sku: 'SPR-KIT-001', category: 'Components', stock: 8, min: 30, unit: 'Kits', status: 'low' },
-    { id: '8', name: 'Electronic Board V2', sku: 'PCB-V2-034', category: 'Electronics', stock: 67, min: 40, unit: 'Units', status: 'ok' },
-  ];
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const data = await productsAPI.getAll();
+      setProducts(data);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+      setError('Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStockStatus = (product) => {
+    const qty = product.total_qty || 0;
+    const reorderLevel = product.reorder_level || 0;
+    
+    if (qty === 0) return 'out';
+    if (qty <= reorderLevel) return 'low';
+    return 'ok';
+  };
 
   const getStatusBadge = (status) => {
     if (status === 'out') return <Badge variant="danger">Out of Stock</Badge>;
     if (status === 'low') return <Badge variant="warning">Low Stock</Badge>;
     return <Badge variant="success">In Stock</Badge>;
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-gray-500">Loading products...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-red-500">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -85,37 +123,40 @@ const Products = () => {
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
-                  <tr key={product.id} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="py-4 px-6">
-                      <div>
-                        <p className="font-semibold text-gray-900">{product.name}</p>
-                        <p className="text-sm text-gray-500">High-performance widget</p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <code className="text-sm bg-gray-100 px-2 py-1 rounded">{product.sku}</code>
-                    </td>
-                    <td className="py-4 px-6 text-gray-600">{product.category}</td>
-                    <td className="py-4 px-6">
-                      <span className="font-semibold">{product.stock}</span>
-                      <span className="text-gray-500"> / {product.min} min</span>
-                    </td>
-                    <td className="py-4 px-6 text-gray-600">{product.unit}</td>
-                    <td className="py-4 px-6">{getStatusBadge(product.status)}</td>
-                    <td className="py-4 px-6">
-                      <div className="flex gap-2">
-                        <Link to={`/products/${product.id}`}>
-                          <Button variant="outline" size="sm">View</Button>
-                        </Link>
-                        <Button variant="outline" size="sm">Edit</Button>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {products.map((product) => {
+                  const status = getStockStatus(product);
+                  return (
+                    <tr key={product.id} className="border-b last:border-0 hover:bg-gray-50">
+                      <td className="py-4 px-6">
+                        <div>
+                          <p className="font-semibold text-gray-900">{product.name}</p>
+                          <p className="text-sm text-gray-500">SKU: {product.sku}</p>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <code className="text-sm bg-gray-100 px-2 py-1 rounded">{product.sku}</code>
+                      </td>
+                      <td className="py-4 px-6 text-gray-600">{product.category || 'N/A'}</td>
+                      <td className="py-4 px-6">
+                        <span className="font-semibold">{product.total_qty || 0}</span>
+                        <span className="text-gray-500"> / {product.reorder_level || 0} min</span>
+                      </td>
+                      <td className="py-4 px-6 text-gray-600">{product.uom || 'Units'}</td>
+                      <td className="py-4 px-6">{getStatusBadge(status)}</td>
+                      <td className="py-4 px-6">
+                        <div className="flex gap-2">
+                          <Link to={`/products/${product.id}`}>
+                            <Button variant="outline" size="sm">View</Button>
+                          </Link>
+                          <Button variant="outline" size="sm">Edit</Button>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

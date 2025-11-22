@@ -1,5 +1,5 @@
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { 
   LayoutDashboard, 
   Package, 
@@ -13,8 +13,22 @@ import {
 const TopNav = () => {
   const location = useLocation();
   const [operationsOpen, setOperationsOpen] = useState(false);
+  const timeoutRef = useRef(null);
   
   const isOperationsActive = location.pathname === '/receipts' || location.pathname === '/deliveries';
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    setOperationsOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => {
+      setOperationsOpen(false);
+    }, 150);
+  };
 
   return (
     <nav className="bg-white border-b fixed top-0 left-0 right-0 z-50" style={{ borderColor: 'var(--border-color)' }}>
@@ -40,8 +54,8 @@ const TopNav = () => {
           
           <div 
             className="relative"
-            onMouseEnter={() => setOperationsOpen(true)}
-            onMouseLeave={() => setOperationsOpen(false)}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
           >
             <button
               className="flex items-center gap-2 px-4 py-2 font-medium transition-colors"
@@ -58,10 +72,12 @@ const TopNav = () => {
             
             {operationsOpen && (
               <div 
-                className="absolute top-full left-0 mt-2 w-48 rounded-lg shadow-lg overflow-hidden"
+                className="absolute left-0 w-48 rounded-lg shadow-lg overflow-hidden"
                 style={{ 
                   backgroundColor: 'var(--bg-card)',
-                  border: '1px solid var(--border-color)'
+                  border: '1px solid var(--border-color)',
+                  top: 'calc(100% + 8px)',
+                  zIndex: 1000
                 }}
               >
                 <Link
