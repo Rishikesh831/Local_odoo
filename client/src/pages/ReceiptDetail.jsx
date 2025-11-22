@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { receiptsAPI, productsAPI, warehousesAPI } from '@/services/api';
 import { Plus, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const ReceiptDetail = () => {
   const { id } = useParams();
@@ -58,7 +59,7 @@ const ReceiptDetail = () => {
   const handleValidate = async () => {
     // Check if there are items
     if (!receipt.items || receipt.items.length === 0) {
-      alert('Cannot validate receipt: Please add at least one product');
+      toast.error('Cannot validate receipt: Please add at least one product');
       return;
     }
 
@@ -67,10 +68,26 @@ const ReceiptDetail = () => {
       await receiptsAPI.validate(id);
       // Refresh receipt data
       await fetchReceipt();
-      alert('Receipt validated successfully!');
+      const statusMsg = receipt.status === 'draft' ? 'Ready' : 'Done';
+      toast.success(`Receipt validated successfully! Status updated to ${statusMsg}`, { duration: 4000 });
     } catch (err) {
       console.error('Error validating receipt:', err);
-      alert(err.response?.data?.error || 'Failed to validate receipt');
+      const errorMsg = err.response?.data?.error || 'Failed to validate receipt';
+      const details = err.response?.data?.details;
+      
+      if (details && Array.isArray(details)) {
+        toast.error(
+          <div>
+            <strong>{errorMsg}</strong>
+            <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+              {details.map((detail, i) => <li key={i}>{detail}</li>)}
+            </ul>
+          </div>,
+          { duration: 6000 }
+        );
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setValidating(false);
     }
@@ -78,7 +95,7 @@ const ReceiptDetail = () => {
 
   const handleAddProduct = async () => {
     if (!newItem.product_id || !newItem.qty || !newItem.warehouse_id) {
-      alert('Please fill all product details');
+      toast.error('Please fill all product details');
       return;
     }
 
@@ -87,10 +104,10 @@ const ReceiptDetail = () => {
       setShowAddProduct(false);
       setNewItem({ product_id: '', qty: '', warehouse_id: '' });
       await fetchReceipt();
-      alert('Product added successfully!');
+      toast.success('Product added successfully!');
     } catch (err) {
       console.error('Error adding product:', err);
-      alert(err.response?.data?.error || 'Failed to add product');
+      toast.error(err.response?.data?.error || 'Failed to add product');
     }
   };
 

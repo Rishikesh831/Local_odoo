@@ -70,13 +70,15 @@ export const addDeliveryItem = async (req, res) => {
   try {
     const { product_id, qty, warehouse_id } = req.body;
 
+    // delivery_items uses location_id, not warehouse_id
     await pool.query(
-      "INSERT INTO delivery_items (delivery_id, product_id, qty, warehouse_id) VALUES ($1, $2, $3, $4)",
-      [req.params.deliveryId, product_id, qty, warehouse_id]
+      "INSERT INTO delivery_items (delivery_id, product_id, qty, location_id) VALUES ($1, $2, $3, $4)",
+      [req.params.deliveryId, product_id, qty, warehouse_id || null]
     );
 
     res.json({ message: "Delivery item added" });
   } catch (err) {
+    console.error('Add delivery item error:', err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -87,7 +89,7 @@ export const validateDelivery = async (req, res) => {
 
     // Get current status
     const deliveryStatus = await pool.query(
-      "SELECT status FROM deliveries WHERE id=$1",
+      "SELECT status FROM deliveries WHERE delivery_id=$1",
       [deliveryId]
     );
 
@@ -102,29 +104,74 @@ export const validateDelivery = async (req, res) => {
     if (currentStatus === 'draft') {
       newStatus = 'ready';
     } else if (currentStatus === 'ready') {
-      newStatus = 'done';
-      
-      // Only reduce stock when moving to done
+      // Get items to validate
       const items = await pool.query(
-        "SELECT product_id, qty FROM delivery_items WHERE delivery_id=$1",
+        "SELECT di.product_id, di.qty, di.location_id, p.product_name FROM delivery_items di JOIN products p ON di.product_id = p.product_id WHERE di.delivery_id=$1",
         [deliveryId]
       );
 
+      // Check stock availability for all items BEFORE making any changes
+      const stockIssues = [];
       for (let item of items.rows) {
+        const locationId = item.location_id || 1;
+        
+        // Check current stock at this location
+        const stockCheck = await pool.query(
+          "SELECT qty, warehouse_id FROM stock WHERE product_id=$1 AND location_id=$2",
+          [item.product_id, locationId]
+        );
+
+        if (stockCheck.rows.length === 0) {
+          stockIssues.push(`Product '${item.product_name}' not available at location ${locationId}`);
+        } else {
+          const currentStock = parseFloat(stockCheck.rows[0].qty);
+          const requiredQty = parseFloat(item.qty);
+          
+          if (currentStock < requiredQty) {
+            stockIssues.push(`Insufficient stock for '${item.product_name}': Available ${currentStock}, Required ${requiredQty}`);
+          }
+        }
+      }
+
+      // If there are stock issues, return error and don't change status
+      if (stockIssues.length > 0) {
+        return res.status(400).json({ 
+          error: "Cannot complete delivery due to insufficient stock",
+          details: stockIssues
+        });
+      }
+
+      // All stock checks passed, proceed with delivery
+      newStatus = 'done';
+      
+      // Reduce stock for all items
+      for (let item of items.rows) {
+        const locationId = item.location_id || 1;
+        
+        // Get warehouse_id for this location
+        const locationInfo = await pool.query(
+          "SELECT warehouse_id FROM stock WHERE location_id=$1 LIMIT 1",
+          [locationId]
+        );
+        
+        const warehouseId = locationInfo.rows.length > 0 ? locationInfo.rows[0].warehouse_id : 1;
+        
+        // Reduce stock quantity
         await pool.query(
-          "UPDATE stock SET qty = qty - $1 WHERE product_id=$2 AND warehouse_id=1",
-          [item.qty, item.product_id]
+          "UPDATE stock SET qty = qty - $1 WHERE product_id=$2 AND warehouse_id=$3 AND location_id=$4",
+          [item.qty, item.product_id, warehouseId, locationId]
         );
       }
     }
 
-    await pool.query("UPDATE deliveries SET status=$1 WHERE id=$2", [
+    await pool.query("UPDATE deliveries SET status=$1 WHERE delivery_id=$2", [
       newStatus,
       deliveryId,
     ]);
 
     res.json({ message: "Delivery status updated", status: newStatus });
   } catch (err) {
+    console.error('Validate delivery error:', err);
     res.status(500).json({ error: err.message });
   }
 };

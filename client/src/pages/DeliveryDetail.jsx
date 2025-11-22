@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { deliveriesAPI, productsAPI, warehousesAPI } from '@/services/api';
+import toast from 'react-hot-toast';
 
 const DeliveryDetail = () => {
   const { id } = useParams();
@@ -59,7 +60,7 @@ const DeliveryDetail = () => {
   const handleValidate = async () => {
     // Check if there are items
     if (!delivery.items || delivery.items.length === 0) {
-      alert('Cannot validate delivery: Please add at least one product');
+      toast.error('Cannot validate delivery: Please add at least one product');
       return;
     }
 
@@ -68,10 +69,31 @@ const DeliveryDetail = () => {
       await deliveriesAPI.validate(id);
       // Refresh delivery data to get updated status
       await fetchDelivery();
-      alert('Delivery validated successfully!');
+      
+      const statusMsg = delivery.status === 'draft' ? 'moved to Ready' : 'completed and stock reduced';
+      toast.success(`Delivery validated successfully! Status ${statusMsg}.`, { duration: 4000 });
     } catch (err) {
       console.error('Error validating delivery:', err);
-      alert(err.response?.data?.error || 'Failed to validate delivery');
+      const errorMsg = err.response?.data?.error || 'Failed to validate delivery';
+      const details = err.response?.data?.details;
+      
+      if (details && Array.isArray(details)) {
+        // Stock shortage error with details
+        toast.error(
+          <div>
+            <strong>{errorMsg}</strong>
+            <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+              {details.map((detail, i) => <li key={i}>{detail}</li>)}
+            </ul>
+            <p style={{ marginTop: '8px', fontSize: '13px', opacity: 0.9 }}>
+              💡 Please add stock via receipts before completing this delivery.
+            </p>
+          </div>,
+          { duration: 8000 }
+        );
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setValidating(false);
     }
@@ -79,7 +101,7 @@ const DeliveryDetail = () => {
 
   const handleAddProduct = async () => {
     if (!newItem.product_id || !newItem.qty || !newItem.warehouse_id) {
-      alert('Please fill all product details');
+      toast.error('Please fill all product details');
       return;
     }
 
@@ -88,10 +110,10 @@ const DeliveryDetail = () => {
       setShowAddProduct(false);
       setNewItem({ product_id: '', qty: '', warehouse_id: '' });
       await fetchDelivery();
-      alert('Product added successfully!');
+      toast.success('Product added successfully!');
     } catch (err) {
       console.error('Error adding product:', err);
-      alert(err.response?.data?.error || 'Failed to add product');
+      toast.error(err.response?.data?.error || 'Failed to add product');
     }
   };
 

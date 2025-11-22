@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { deliveriesAPI, productsAPI, warehousesAPI } from '@/services/api';
+import toast from 'react-hot-toast';
 
 const CreateDeliveryModal = ({ isOpen, onClose, onSuccess }) => {
   const [customers] = useState([
@@ -25,7 +26,6 @@ const CreateDeliveryModal = ({ isOpen, onClose, onSuccess }) => {
   const [products, setProducts] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -49,24 +49,28 @@ const CreateDeliveryModal = ({ isOpen, onClose, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
 
     try {
       // Validate
       if (!formData.customer_name) {
-        throw new Error('Please select a customer');
+        toast.error('Please select a customer');
+        setLoading(false);
+        return;
       }
       if (!formData.product_id || !formData.quantity || !formData.warehouse_id) {
-        throw new Error('Please fill all product details');
+        toast.error('Please fill all product details');
+        setLoading(false);
+        return;
       }
 
       // Create delivery with product info
       await deliveriesAPI.create(formData);
+      toast.success('Delivery created successfully!');
 
       onSuccess?.();
       handleClose();
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to create delivery');
+      toast.error(err.response?.data?.error || err.message || 'Failed to create delivery');
     } finally {
       setLoading(false);
     }
@@ -82,7 +86,6 @@ const CreateDeliveryModal = ({ isOpen, onClose, onSuccess }) => {
       quantity: '',
       warehouse_id: ''
     });
-    setError('');
     onClose();
   };
 

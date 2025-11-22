@@ -15,6 +15,8 @@ const Deliveries = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
     fetchDeliveries();
@@ -50,6 +52,18 @@ const Deliveries = () => {
     return <Badge variant={variants[status] || 'draft'}>{status === 'ready' ? 'Ready to Ship' : status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
   };
 
+  // Filter deliveries based on search term and status
+  const filteredDeliveries = deliveries.filter(delivery => {
+    const matchesSearch = searchTerm === '' || 
+      delivery.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      delivery.customer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(delivery.id).includes(searchTerm);
+    
+    const matchesStatus = statusFilter === '' || delivery.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -83,14 +97,22 @@ const Deliveries = () => {
         <div className="flex flex-1 gap-4">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input placeholder="Search by reference or customer..." className="pl-10" />
+            <Input 
+              placeholder="Search by reference or customer..." 
+              className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-          <Select className="w-44">
+          <Select 
+            className="w-44"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
             <option value="">All Status</option>
             <option value="draft">Draft</option>
             <option value="ready">Ready to Ship</option>
-            <option value="shipped">Shipped</option>
-            <option value="delivered">Delivered</option>
+            <option value="done">Done</option>
           </Select>
           <Input type="date" className="w-44" />
         </div>
@@ -146,14 +168,14 @@ const Deliveries = () => {
                 </tr>
               </thead>
               <tbody>
-                {deliveries.length === 0 ? (
+                {filteredDeliveries.length === 0 ? (
                   <tr>
                     <td colSpan="7" className="py-8 px-6 text-center text-gray-500">
-                      No deliveries found. Click "Create Delivery" to get started.
+                      {deliveries.length === 0 ? 'No deliveries found. Click "Create Delivery" to get started.' : 'No deliveries match your search criteria.'}
                     </td>
                   </tr>
                 ) : (
-                  deliveries.map((delivery) => (
+                  filteredDeliveries.map((delivery) => (
                     <tr 
                       key={delivery.id} 
                       className="border-b last:border-0 hover:bg-gray-50 cursor-pointer"
@@ -193,7 +215,7 @@ const Deliveries = () => {
           </div>
         </CardContent>
         <CardFooter className="flex justify-between items-center py-4">
-          <p className="text-sm text-gray-500">Showing {deliveries.length} deliveries</p>
+          <p className="text-sm text-gray-500">Showing {filteredDeliveries.length} of {deliveries.length} deliveries</p>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled>Previous</Button>
             <Button variant="outline" size="sm">1</Button>

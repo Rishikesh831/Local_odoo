@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { receiptsAPI, productsAPI, warehousesAPI } from '@/services/api';
+import toast from 'react-hot-toast';
 
 const CreateReceiptModal = ({ isOpen, onClose, onSuccess }) => {
   const [vendors] = useState([
@@ -25,7 +26,6 @@ const CreateReceiptModal = ({ isOpen, onClose, onSuccess }) => {
   const [products, setProducts] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -49,24 +49,28 @@ const CreateReceiptModal = ({ isOpen, onClose, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
 
     try {
       // Validate
       if (!formData.supplier_name) {
-        throw new Error('Please select a vendor');
+        toast.error('Please select a vendor');
+        setLoading(false);
+        return;
       }
       if (!formData.product_id || !formData.quantity || !formData.warehouse_id) {
-        throw new Error('Please fill all product details');
+        toast.error('Please fill all product details');
+        setLoading(false);
+        return;
       }
 
       // Create receipt with product info
       await receiptsAPI.create(formData);
+      toast.success('Receipt created successfully!');
 
       onSuccess?.();
       handleClose();
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to create receipt');
+      toast.error(err.response?.data?.error || err.message || 'Failed to create receipt');
     } finally {
       setLoading(false);
     }
@@ -82,7 +86,6 @@ const CreateReceiptModal = ({ isOpen, onClose, onSuccess }) => {
       quantity: '',
       warehouse_id: ''
     });
-    setError('');
     onClose();
   };
 

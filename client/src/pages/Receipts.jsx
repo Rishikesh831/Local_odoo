@@ -14,6 +14,8 @@ const Receipts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
     fetchReceipts();
@@ -46,6 +48,18 @@ const Receipts = () => {
     const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
     return <Badge variant={statusMap[status] || 'draft'}>{displayStatus}</Badge>;
   };
+
+  // Filter receipts based on search term and status
+  const filteredReceipts = receipts.filter(receipt => {
+    const matchesSearch = searchTerm === '' || 
+      receipt.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      receipt.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(receipt.id).includes(searchTerm);
+    
+    const matchesStatus = statusFilter === '' || receipt.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   if (loading) {
     return (
@@ -83,6 +97,8 @@ const Receipts = () => {
           <Input 
             placeholder="Search by reference & contacts..." 
             className="pl-10"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         
@@ -173,18 +189,18 @@ const Receipts = () => {
             </tr>
           </thead>
           <tbody>
-            {receipts.length === 0 ? (
+            {filteredReceipts.length === 0 ? (
               <tr>
                 <td colSpan="6" style={{ 
                   padding: '32px',
                   textAlign: 'center',
                   color: 'var(--text-secondary)'
                 }}>
-                  No receipts found. Click "NEW" to create one.
+                  {receipts.length === 0 ? 'No receipts found. Click "Create Receipt" to create one.' : 'No receipts match your search criteria.'}
                 </td>
               </tr>
             ) : (
-              receipts.map((receipt, index) => (
+              filteredReceipts.map((receipt, index) => (
                 <tr 
                   key={receipt.id}
                   style={{ 
