@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
+import Operations from './pages/Operations';
+import Stock from './pages/Stock';
 import Products from './pages/Products';
 import ProductDetails from './pages/ProductDetails';
 import Receipts from './pages/Receipts';
@@ -17,6 +19,8 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="operations" element={<Operations />} />
+          <Route path="stock" element={<Stock />} />
           <Route path="products" element={<Products />} />
           <Route path="products/:id" element={<ProductDetails />} />
           <Route path="receipts" element={<Receipts />} />

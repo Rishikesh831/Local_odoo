@@ -1,86 +1,142 @@
 import { Link, useLocation, Outlet } from 'react-router-dom';
+import { useState } from 'react';
 import { 
   LayoutDashboard, 
   Package, 
-  Inbox, 
-  Send, 
   TrendingUp, 
-  Settings 
+  Settings,
+  ChevronDown,
+  Inbox,
+  Send
 } from 'lucide-react';
 
-const Sidebar = () => {
+const TopNav = () => {
   const location = useLocation();
+  const [operationsOpen, setOperationsOpen] = useState(false);
   
-  const navItems = [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/products', icon: Package, label: 'Products' },
-    { path: '/receipts', icon: Inbox, label: 'Receipts' },
-    { path: '/deliveries', icon: Send, label: 'Deliveries' },
-    { path: '/reports', icon: TrendingUp, label: 'Reports' },
-    { path: '/settings', icon: Settings, label: 'Settings' },
-  ];
+  const isOperationsActive = location.pathname === '/receipts' || location.pathname === '/deliveries';
 
   return (
-    <aside className="w-[260px] bg-white border-r h-screen fixed left-0 top-0 overflow-y-auto" style={{ borderColor: 'var(--border-color)' }}>
-      <div className="p-8 pb-6">
+    <nav className="bg-white border-b fixed top-0 left-0 right-0 z-50" style={{ borderColor: 'var(--border-color)' }}>
+      <div className="flex items-center justify-between px-8 py-4">
         <div className="flex items-center gap-2 text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
           <Package className="w-6 h-6" style={{ color: 'var(--accent-green)' }} />
           StockMaster
         </div>
-      </div>
-      
-      <nav className="px-6">
-        <ul className="space-y-2">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.path || 
-                           (item.path === '/dashboard' && location.pathname === '/');
+        
+        <div className="flex items-center gap-6">
+          <Link
+            to="/dashboard"
+            className="px-4 py-2 font-medium transition-colors"
+            style={location.pathname === '/' || location.pathname === '/dashboard' ? {
+              borderBottom: '2px solid var(--accent-green)',
+              color: 'var(--accent-green)'
+            } : {
+              color: 'var(--text-secondary)'
+            }}
+          >
+            Dashboard
+          </Link>
+          
+          <div 
+            className="relative"
+            onMouseEnter={() => setOperationsOpen(true)}
+            onMouseLeave={() => setOperationsOpen(false)}
+          >
+            <button
+              className="flex items-center gap-2 px-4 py-2 font-medium transition-colors"
+              style={isOperationsActive ? {
+                borderBottom: '2px solid var(--accent-green)',
+                color: 'var(--accent-green)'
+              } : {
+                color: 'var(--text-secondary)'
+              }}
+            >
+              Operations
+              <ChevronDown className="w-4 h-4" />
+            </button>
             
-            return (
-              <li key={item.path}>
+            {operationsOpen && (
+              <div 
+                className="absolute top-full left-0 mt-2 w-48 rounded-lg shadow-lg overflow-hidden"
+                style={{ 
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)'
+                }}
+              >
                 <Link
-                  to={item.path}
-                  className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all font-medium ${
-                    isActive
-                      ? 'font-semibold'
-                      : ''
-                  }`}
-                  style={isActive ? {
-                    backgroundColor: 'var(--bg-card)',
-                    color: 'var(--text-primary)'
-                  } : {
-                    color: 'var(--text-secondary)'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.backgroundColor = 'var(--bg-card)';
-                      e.currentTarget.style.color = 'var(--text-primary)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = 'var(--text-secondary)';
-                    }
-                  }}
+                  to="/receipts"
+                  className="flex items-center gap-3 px-4 py-3 transition-colors"
+                  style={{ color: 'var(--text-primary)' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-primary)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span>{item.label}</span>
+                  <Inbox className="w-4 h-4" />
+                  Receipts
                 </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-    </aside>
+                <Link
+                  to="/deliveries"
+                  className="flex items-center gap-3 px-4 py-3 transition-colors"
+                  style={{ color: 'var(--text-primary)' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-primary)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <Send className="w-4 h-4" />
+                  Deliveries
+                </Link>
+              </div>
+            )}
+          </div>
+          
+          <Link
+            to="/stock"
+            className="px-4 py-2 font-medium transition-colors"
+            style={location.pathname === '/stock' ? {
+              borderBottom: '2px solid var(--accent-green)',
+              color: 'var(--accent-green)'
+            } : {
+              color: 'var(--text-secondary)'
+            }}
+          >
+            Stock
+          </Link>
+          
+          <Link
+            to="/reports"
+            className="px-4 py-2 font-medium transition-colors"
+            style={location.pathname === '/reports' ? {
+              borderBottom: '2px solid var(--accent-green)',
+              color: 'var(--accent-green)'
+            } : {
+              color: 'var(--text-secondary)'
+            }}
+          >
+            Reports
+          </Link>
+          
+          <Link
+            to="/settings"
+            className="px-4 py-2 font-medium transition-colors"
+            style={location.pathname === '/settings' ? {
+              borderBottom: '2px solid var(--accent-green)',
+              color: 'var(--accent-green)'
+            } : {
+              color: 'var(--text-secondary)'
+            }}
+          >
+            Settings
+          </Link>
+        </div>
+      </div>
+    </nav>
   );
 };
 
 const Layout = () => {
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      <Sidebar />
-      <main className="flex-1 ml-[260px] p-8">
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
+      <TopNav />
+      <main className="pt-24 px-8 pb-8">
         <Outlet />
       </main>
     </div>
